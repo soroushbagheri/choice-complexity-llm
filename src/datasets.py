@@ -1,411 +1,656 @@
-"""Dataset generators for choice complexity experiments.
+"""Dataset Generation Module for Choice Complexity Research.
 
-Provides:
-- SyntheticChoiceDataset: Controlled complexity with ground truth
-- ConsumerChoiceDataset: Product-like scenarios
+Generates synthetic choice sets with controlled complexity parameters:
+- Number of options (n)
+- Redundancy ratio (near-duplicates)
+- Attribute conflict levels
+- Decoy options
+- Pareto front structure
+
+Author: Soroush Bagheri
+Date: January 2026
 """
 
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Any, Tuple, Optional, Literal
-from dataclasses import dataclass
-import logging
-import itertools
-
-logger = logging.getLogger(__name__)
+from typing import List, Dict, Tuple, Optional, Any
+from dataclasses import dataclass, field
+import json
+from pathlib import Path
+import hashlib
 
 
 @dataclass
-class ChoiceProblem:
-    """A single choice problem with options and metadata."""
-    
-    problem_id: int
-    options: List[Dict[str, Any]]
-    ground_truth: Optional[int]  # Index of correct/best option
-    decision_rule: Optional[str]  # Description of decision rule
-    complexity_params: Dict[str, Any]  # Parameters used to generate
+class Option:
+    """Represents a single choice option with attributes."""
+    id: str
+    name: str
+    attributes: Dict[str, float]
+    description: Optional[str] = None
+    is_decoy: bool = False
+    is_duplicate: bool = False
+    duplicate_of: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
+        """Convert option to dictionary."""
         return {
-            'problem_id': self.problem_id,
-            'n_options': len(self.options),
+            'id': self.id,
+            'name': self.name,
+            'attributes': self.attributes,
+            'description': self.description,
+            'is_decoy': self.is_decoy,
+            'is_duplicate': self.is_duplicate,
+            'duplicate_of': self.duplicate_of
+        }
+    
+    def __str__(self) -> str:
+        """String representation for LLM prompts."""
+        attr_str = ", ".join([f"{k}: {v:.2f}" for k, v in self.attributes.items()])
+        return f"{self.name} ({attr_str})"
+
+
+@dataclass
+class ChoiceSet:
+    """Represents a complete choice set with metadata."""
+    id: str
+    options: List[Option]
+    ground_truth: Optional[str] = None  # ID of optimal choice
+    decision_rule: Optional[str] = None  # Description of decision rule
+    complexity_params: Dict[str, Any] = field(default_factory=dict)
+    task_description: Optional[str] = None
+    
+    def __len__(self) -> int:
+        return len(self.options)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert choice set to dictionary."""
+        return {
+            'id': self.id,
+            'options': [opt.to_dict() for opt in self.options],
             'ground_truth': self.ground_truth,
             'decision_rule': self.decision_rule,
-            **self.complexity_params
+            'complexity_params': self.complexity_params,
+            'task_description': self.task_description
         }
+    
+    def to_prompt(self, format_type: str = "numbered_list") -> str:
+        """Convert choice set to LLM prompt format."""
+        if format_type == "numbered_list":
+            prompt_lines = []
+            for i, opt in enumerate(self.options, 1):
+                prompt_lines.append(f"{i}. {opt}")
+            return "\n".join(prompt_lines)
+        elif format_type == "markdown_table":
+            if not self.options:
+                return ""
+            # Get all attribute names
+            attrs = list(self.options[0].attributes.keys())
+            header = "| Option | " + " | ".join(attrs) + " |\n"
+            separator = "|" + "---|".join(["" for _ in range(len(attrs) + 2)])
+            rows = []
+            for opt in self.options:
+                row = f"| {opt.name} | " + " | ".join([f"{opt.attributes[a]:.2f}" for a in attrs]) + " |"
+                rows.append(row)
+            return header + separator + "\n" + "\n".join(rows)
+        else:
+            return "\n".join([str(opt) for opt in self.options])
 
 
-class SyntheticChoiceDataset:
-    """Generate synthetic choice problems with controlled complexity.
+class SyntheticChoiceGenerator:
+    """Generates synthetic choice sets with controlled complexity."""
     
-    Creates option sets with manipulated:
-    - Number of options
-    - Redundancy ratio (near-duplicates)
-    - Attribute conflict (trade-offs)
-    - Pareto front size
-    - Decoy options (attraction effect)
-    
-    Args:
-        n_options_range: Range or list of option counts
-        redundancy_ratios: List of redundancy ratios to test
-        conflict_levels: List of conflict levels
-        n_attributes: Number of attributes per option
-        seed: Random seed for reproducibility
-    """
-    
-    def __init__(
-        self,
-        n_options_range: List[int] = None,
-        redundancy_ratios: List[float] = None,
-        conflict_levels: List[str] = None,
-        n_attributes: int = 5,
-        seed: int = 42
-    ):
-        if n_options_range is None:
-            n_options_range = [3, 5, 10, 20, 50]
-        
-        if redundancy_ratios is None:
-            redundancy_ratios = [0.0, 0.3, 0.6]
-        
-        if conflict_levels is None:
-            conflict_levels = ['low', 'medium', 'high']
-        
-        self.n_options_range = n_options_range
-        self.redundancy_ratios = redundancy_ratios
-        self.conflict_levels = conflict_levels
-        self.n_attributes = n_attributes
-        self.seed = seed
-        
-        self.rng = np.random.RandomState(seed)
-        
-        logger.info(f"Initialized SyntheticChoiceDataset with seed={seed}")
-    
-    def generate(
-        self,
-        n_problems_per_config: int = 10
-    ) -> Tuple[List[ChoiceProblem], pd.DataFrame]:
-        """Generate full dataset.
+    def __init__(self, seed: int = 42):
+        """Initialize generator with random seed.
         
         Args:
-            n_problems_per_config: Number of problems per configuration
-        
-        Returns:
-            (problems_list, metadata_df)
+            seed: Random seed for reproducibility
         """
-        problems = []
-        problem_id = 0
+        self.seed = seed
+        self.rng = np.random.RandomState(seed)
         
-        # Generate problems for all configurations
-        configs = itertools.product(
-            self.n_options_range,
-            self.redundancy_ratios,
-            self.conflict_levels
-        )
+    def generate_dataset(
+        self,
+        n_choice_sets: int = 100,
+        n_options_range: Tuple[int, int] = (3, 20),
+        n_attributes_range: Tuple[int, int] = (2, 5),
+        redundancy_ratios: List[float] = [0.0, 0.3, 0.6],
+        conflict_levels: List[str] = ["low", "medium", "high"],
+        include_decoys: bool = True,
+        save_path: Optional[Path] = None
+    ) -> List[ChoiceSet]:
+        """Generate a complete dataset of choice sets.
         
-        for n_opts, redundancy, conflict in configs:
-            for rep in range(n_problems_per_config):
-                # Generate problem
-                options, ground_truth = self._generate_options(
-                    n_options=n_opts,
-                    redundancy_ratio=redundancy,
-                    conflict_level=conflict
-                )
-                
-                decision_rule = self._get_decision_rule()
-                
-                problem = ChoiceProblem(
-                    problem_id=problem_id,
-                    options=options,
-                    ground_truth=ground_truth,
-                    decision_rule=decision_rule,
-                    complexity_params={
-                        'n_options': n_opts,
-                        'redundancy_ratio': redundancy,
-                        'conflict_level': conflict
-                    }
-                )
-                
-                problems.append(problem)
-                problem_id += 1
+        Args:
+            n_choice_sets: Number of choice sets to generate
+            n_options_range: Range for number of options per set
+            n_attributes_range: Range for number of attributes per option
+            redundancy_ratios: List of redundancy ratios to sample from
+            conflict_levels: List of conflict levels ("low", "medium", "high")
+            include_decoys: Whether to include decoy options
+            save_path: Optional path to save dataset as JSON
+            
+        Returns:
+            List of ChoiceSet objects
+        """
+        choice_sets = []
         
-        # Create metadata DataFrame
-        metadata = pd.DataFrame([p.to_dict() for p in problems])
+        for i in range(n_choice_sets):
+            # Sample complexity parameters
+            n_options = self.rng.randint(*n_options_range)
+            n_attributes = self.rng.randint(*n_attributes_range)
+            redundancy_ratio = self.rng.choice(redundancy_ratios)
+            conflict_level = self.rng.choice(conflict_levels)
+            
+            # Generate choice set
+            choice_set = self.generate_choice_set(
+                n_options=n_options,
+                n_attributes=n_attributes,
+                redundancy_ratio=redundancy_ratio,
+                conflict_level=conflict_level,
+                include_decoy=include_decoys and self.rng.rand() > 0.5,
+                set_id=f"set_{i:04d}"
+            )
+            
+            choice_sets.append(choice_set)
         
-        logger.info(f"Generated {len(problems)} choice problems")
+        # Save if path provided
+        if save_path:
+            self._save_dataset(choice_sets, save_path)
         
-        return problems, metadata
+        return choice_sets
     
-    def _generate_options(
+    def generate_choice_set(
         self,
         n_options: int,
-        redundancy_ratio: float,
-        conflict_level: str
-    ) -> Tuple[List[Dict[str, Any]], int]:
-        """Generate option set with specified complexity.
+        n_attributes: int,
+        redundancy_ratio: float = 0.0,
+        conflict_level: str = "medium",
+        include_decoy: bool = False,
+        set_id: Optional[str] = None
+    ) -> ChoiceSet:
+        """Generate a single choice set with specified complexity.
         
+        Args:
+            n_options: Number of options
+            n_attributes: Number of attributes per option
+            redundancy_ratio: Fraction of near-duplicate options (0.0-1.0)
+            conflict_level: Attribute conflict level ("low", "medium", "high")
+            include_decoy: Whether to include a decoy option
+            set_id: Unique identifier for this choice set
+            
         Returns:
-            (options, ground_truth_index)
+            ChoiceSet object
         """
+        if set_id is None:
+            set_id = hashlib.md5(str(self.rng.rand()).encode()).hexdigest()[:8]
+        
+        # Generate attribute names
+        attribute_names = [f"attr_{i+1}" for i in range(n_attributes)]
+        
+        # Determine correlation structure based on conflict level
+        correlation = self._get_correlation_matrix(n_attributes, conflict_level)
+        
+        # Generate base options
+        n_unique = int(n_options * (1 - redundancy_ratio))
+        n_duplicates = n_options - n_unique
+        
         options = []
         
-        # Determine number of unique vs redundant options
-        n_redundant = int(n_options * redundancy_ratio)
-        n_unique = n_options - n_redundant
-        
         # Generate unique options
-        unique_options = self._generate_unique_options(n_unique, conflict_level)
-        options.extend(unique_options)
+        base_attributes = self._generate_correlated_attributes(
+            n_unique, n_attributes, correlation
+        )
         
-        # Add redundant (near-duplicate) options
-        if n_redundant > 0:
-            redundant_options = self._generate_redundant_options(
-                unique_options, 
-                n_redundant
+        for i in range(n_unique):
+            attrs = {name: float(base_attributes[i, j]) 
+                    for j, name in enumerate(attribute_names)}
+            
+            option = Option(
+                id=f"opt_{set_id}_{i:03d}",
+                name=f"Option {chr(65+i)}",  # A, B, C, ...
+                attributes=attrs,
+                description=None,
+                is_decoy=False,
+                is_duplicate=False
             )
-            options.extend(redundant_options)
+            options.append(option)
+        
+        # Add near-duplicates
+        for i in range(n_duplicates):
+            # Pick a random base option to duplicate
+            base_idx = self.rng.randint(0, n_unique)
+            base_option = options[base_idx]
+            
+            # Add small noise to attributes
+            noisy_attrs = {}
+            for name, value in base_option.attributes.items():
+                noise = self.rng.normal(0, 0.05)  # 5% std noise
+                noisy_attrs[name] = np.clip(value + noise, 0, 1)
+            
+            duplicate = Option(
+                id=f"opt_{set_id}_{n_unique+i:03d}",
+                name=f"Option {chr(65+n_unique+i)}",
+                attributes=noisy_attrs,
+                description=None,
+                is_decoy=False,
+                is_duplicate=True,
+                duplicate_of=base_option.id
+            )
+            options.append(duplicate)
+        
+        # Add decoy option if requested
+        if include_decoy and n_unique > 0:
+            decoy = self._create_decoy_option(options[0], set_id, len(options))
+            options.append(decoy)
         
         # Shuffle options
         self.rng.shuffle(options)
         
-        # Ground truth: best option according to simple rule
-        # (e.g., highest sum of normalized attributes)
-        ground_truth = self._determine_ground_truth(options)
+        # Determine ground truth (highest utility option)
+        ground_truth, decision_rule = self._compute_ground_truth(
+            options, attribute_names
+        )
         
-        return options, ground_truth
+        # Create complexity parameters record
+        complexity_params = {
+            'n_options': n_options,
+            'n_attributes': n_attributes,
+            'redundancy_ratio': redundancy_ratio,
+            'conflict_level': conflict_level,
+            'has_decoy': include_decoy,
+            'n_unique': n_unique,
+            'n_duplicates': n_duplicates
+        }
+        
+        choice_set = ChoiceSet(
+            id=set_id,
+            options=options,
+            ground_truth=ground_truth,
+            decision_rule=decision_rule,
+            complexity_params=complexity_params,
+            task_description="Select the best option based on the given attributes."
+        )
+        
+        return choice_set
     
-    def _generate_unique_options(
-        self,
-        n_options: int,
+    def _get_correlation_matrix(
+        self, 
+        n_attributes: int, 
         conflict_level: str
-    ) -> List[Dict[str, Any]]:
-        """Generate diverse unique options."""
-        options = []
+    ) -> np.ndarray:
+        """Generate correlation matrix for attributes based on conflict level.
         
-        for i in range(n_options):
-            option = {'id': i}
+        Args:
+            n_attributes: Number of attributes
+            conflict_level: "low", "medium", or "high"
             
-            if conflict_level == 'low':
-                # Aligned attributes (positive correlation)
-                base_quality = self.rng.uniform(0, 1)
-                for j in range(self.n_attributes):
-                    # Add noise around base quality
-                    option[f'attr_{j}'] = np.clip(
-                        base_quality + self.rng.normal(0, 0.1),
-                        0, 1
-                    )
-            
-            elif conflict_level == 'medium':
-                # Independent attributes
-                for j in range(self.n_attributes):
-                    option[f'attr_{j}'] = self.rng.uniform(0, 1)
-            
-            else:  # high conflict
-                # Trade-offs (negative correlation)
-                for j in range(self.n_attributes):
-                    if j % 2 == 0:
-                        option[f'attr_{j}'] = self.rng.uniform(0.7, 1.0)
-                    else:
-                        option[f'attr_{j}'] = self.rng.uniform(0.0, 0.3)
-            
-            options.append(option)
-        
-        return options
-    
-    def _generate_redundant_options(
-        self,
-        base_options: List[Dict[str, Any]],
-        n_redundant: int
-    ) -> List[Dict[str, Any]]:
-        """Generate near-duplicates of existing options."""
-        redundant = []
-        
-        for i in range(n_redundant):
-            # Pick random base option
-            base = self.rng.choice(base_options)
-            
-            # Create near-duplicate with small noise
-            duplicate = {'id': f"dup_{i}"}
-            
-            for key, value in base.items():
-                if isinstance(value, (int, float)) and key != 'id':
-                    # Add small noise (±5%)
-                    noise = self.rng.normal(0, 0.05)
-                    duplicate[key] = np.clip(value + noise, 0, 1)
-                else:
-                    duplicate[key] = value
-            
-            redundant.append(duplicate)
-        
-        return redundant
-    
-    def _determine_ground_truth(self, options: List[Dict[str, Any]]) -> int:
-        """Determine best option by simple rule.
-        
-        Ground truth = option with highest average attribute value.
+        Returns:
+            Correlation matrix
         """
-        scores = []
+        if conflict_level == "low":
+            # Highly correlated attributes (easier decisions)
+            base_corr = 0.7
+        elif conflict_level == "medium":
+            # Moderate correlation
+            base_corr = 0.3
+        else:  # high
+            # Negative correlation (conflicting attributes)
+            base_corr = -0.5
         
-        for opt in options:
-            attr_values = [v for k, v in opt.items() 
-                          if k.startswith('attr_') and isinstance(v, (int, float))]
-            scores.append(np.mean(attr_values) if attr_values else 0)
+        # Create correlation matrix
+        corr = np.eye(n_attributes)
+        for i in range(n_attributes):
+            for j in range(i+1, n_attributes):
+                corr[i, j] = corr[j, i] = base_corr + self.rng.normal(0, 0.1)
         
-        return int(np.argmax(scores))
+        # Ensure positive semi-definite
+        corr = self._nearest_psd(corr)
+        
+        return corr
     
-    def _get_decision_rule(self) -> str:
-        """Get description of decision rule."""
-        return "maximize: average of all attributes"
-
-
-class ConsumerChoiceDataset:
-    """Generate consumer-choice-like problems (e.g., product selection).
+    def _nearest_psd(self, A: np.ndarray) -> np.ndarray:
+        """Find nearest positive semi-definite matrix."""
+        B = (A + A.T) / 2
+        _, s, V = np.linalg.svd(B)
+        H = np.dot(V.T, np.dot(np.diag(s), V))
+        A2 = (B + H) / 2
+        A3 = (A2 + A2.T) / 2
+        
+        if self._is_psd(A3):
+            return A3
+        
+        spacing = np.spacing(np.linalg.norm(A))
+        I = np.eye(A.shape[0])
+        k = 1
+        while not self._is_psd(A3):
+            mineig = np.min(np.real(np.linalg.eigvals(A3)))
+            A3 += I * (-mineig * k**2 + spacing)
+            k += 1
+        
+        return A3
     
-    Creates product-like options with realistic attributes:
-    - Price (lower is better)
-    - Rating (higher is better)
-    - Shipping time (lower is better)
-    - Brand reputation (higher is better)
-    - Warranty (higher is better)
+    def _is_psd(self, A: np.ndarray) -> bool:
+        """Check if matrix is positive semi-definite."""
+        return np.all(np.linalg.eigvals(A) >= -1e-8)
     
-    Args:
-        n_problems: Number of problems to generate
-        n_options_range: Range of option counts
-        user_profiles: Types of user preferences
-        seed: Random seed
-    """
-    
-    def __init__(
+    def _generate_correlated_attributes(
         self,
-        n_problems: int = 100,
-        n_options_range: Tuple[int, int] = (5, 20),
-        user_profiles: List[str] = None,
-        seed: int = 42
+        n_samples: int,
+        n_attributes: int,
+        correlation: np.ndarray
+    ) -> np.ndarray:
+        """Generate correlated attribute values.
+        
+        Args:
+            n_samples: Number of options
+            n_attributes: Number of attributes
+            correlation: Correlation matrix
+            
+        Returns:
+            Array of shape (n_samples, n_attributes) with values in [0, 1]
+        """
+        # Generate correlated normal variables
+        mean = np.zeros(n_attributes)
+        samples = self.rng.multivariate_normal(mean, correlation, size=n_samples)
+        
+        # Transform to [0, 1] using CDF
+        from scipy.stats import norm
+        uniform_samples = norm.cdf(samples)
+        
+        return uniform_samples
+    
+    def _create_decoy_option(
+        self, 
+        target: Option, 
+        set_id: str, 
+        index: int
+    ) -> Option:
+        """Create a decoy option (asymmetrically dominated).
+        
+        The decoy is slightly worse than the target on all attributes.
+        
+        Args:
+            target: Target option to create decoy for
+            set_id: Choice set ID
+            index: Index for option ID
+            
+        Returns:
+            Decoy option
+        """
+        decoy_attrs = {}
+        for name, value in target.attributes.items():
+            # Make slightly worse (5-15% lower)
+            reduction = self.rng.uniform(0.05, 0.15)
+            decoy_attrs[name] = max(0, value * (1 - reduction))
+        
+        decoy = Option(
+            id=f"opt_{set_id}_{index:03d}",
+            name=f"Option {chr(65+index)}",
+            attributes=decoy_attrs,
+            description="Decoy option",
+            is_decoy=True,
+            is_duplicate=False
+        )
+        
+        return decoy
+    
+    def _compute_ground_truth(
+        self, 
+        options: List[Option], 
+        attribute_names: List[str]
+    ) -> Tuple[str, str]:
+        """Compute ground truth optimal choice.
+        
+        Uses simple additive utility: sum of all attributes.
+        
+        Args:
+            options: List of options
+            attribute_names: List of attribute names
+            
+        Returns:
+            Tuple of (ground_truth_id, decision_rule)
+        """
+        utilities = []
+        for opt in options:
+            # Equal-weight additive utility
+            utility = sum(opt.attributes.values()) / len(opt.attributes)
+            utilities.append(utility)
+        
+        best_idx = np.argmax(utilities)
+        ground_truth = options[best_idx].id
+        decision_rule = "Maximize average attribute value (equal weights)"
+        
+        return ground_truth, decision_rule
+    
+    def _save_dataset(
+        self, 
+        choice_sets: List[ChoiceSet], 
+        save_path: Path
     ):
-        if user_profiles is None:
-            user_profiles = ['budget', 'balanced', 'quality']
+        """Save dataset to JSON file.
         
-        self.n_problems = n_problems
-        self.n_options_range = n_options_range
-        self.user_profiles = user_profiles
+        Args:
+            choice_sets: List of choice sets
+            save_path: Path to save file
+        """
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        dataset_dict = {
+            'metadata': {
+                'n_choice_sets': len(choice_sets),
+                'generator_seed': self.seed,
+                'generation_date': pd.Timestamp.now().isoformat()
+            },
+            'choice_sets': [cs.to_dict() for cs in choice_sets]
+        }
+        
+        with open(save_path, 'w') as f:
+            json.dump(dataset_dict, f, indent=2)
+        
+        print(f"Dataset saved to {save_path}")
+
+
+class ConsumerChoiceGenerator:
+    """Generates realistic consumer choice scenarios (products with attributes)."""
+    
+    def __init__(self, seed: int = 42):
+        """Initialize generator.
+        
+        Args:
+            seed: Random seed
+        """
         self.seed = seed
-        
         self.rng = np.random.RandomState(seed)
         
-        logger.info(f"Initialized ConsumerChoiceDataset with seed={seed}")
-    
-    def generate(self) -> Tuple[List[ChoiceProblem], pd.DataFrame]:
-        """Generate consumer choice problems.
-        
-        Returns:
-            (problems_list, metadata_df)
-        """
-        problems = []
-        
-        for i in range(self.n_problems):
-            # Random number of options
-            n_opts = self.rng.randint(*self.n_options_range)
-            
-            # Random user profile
-            profile = self.rng.choice(self.user_profiles)
-            
-            # Generate options
-            options = self._generate_products(n_opts)
-            
-            # Determine ground truth based on profile
-            ground_truth = self._determine_best_product(options, profile)
-            
-            decision_rule = self._get_decision_rule(profile)
-            
-            problem = ChoiceProblem(
-                problem_id=i,
-                options=options,
-                ground_truth=ground_truth,
-                decision_rule=decision_rule,
-                complexity_params={
-                    'n_options': n_opts,
-                    'user_profile': profile
-                }
-            )
-            
-            problems.append(problem)
-        
-        metadata = pd.DataFrame([p.to_dict() for p in problems])
-        
-        logger.info(f"Generated {len(problems)} consumer choice problems")
-        
-        return problems, metadata
-    
-    def _generate_products(self, n_products: int) -> List[Dict[str, Any]]:
-        """Generate product options."""
-        products = []
-        
-        brands = ['BrandA', 'BrandB', 'BrandC', 'BrandD', 'BrandE']
-        
-        for i in range(n_products):
-            product = {
-                'id': i,
-                'name': f'Product_{i}',
-                'price': self.rng.uniform(20, 200),  # $20-200
-                'rating': self.rng.uniform(3.0, 5.0),  # 3.0-5.0 stars
-                'shipping_days': self.rng.randint(1, 15),  # 1-14 days
-                'brand': self.rng.choice(brands),
-                'warranty_months': self.rng.choice([0, 6, 12, 24, 36]),
-                'brand_reputation': self.rng.uniform(0.5, 1.0)  # 0.5-1.0
-            }
-            
-            products.append(product)
-        
-        return products
-    
-    def _determine_best_product(
-        self, 
-        products: List[Dict[str, Any]], 
-        profile: str
-    ) -> int:
-        """Determine best product based on user profile."""
-        scores = []
-        
-        for product in products:
-            if profile == 'budget':
-                # Minimize price, rating > 4.0
-                if product['rating'] >= 4.0:
-                    score = 1.0 / product['price']  # Lower price = higher score
-                else:
-                    score = -1  # Disqualified
-            
-            elif profile == 'balanced':
-                # Balance price and quality
-                # Normalize and compute weighted sum
-                price_norm = 1.0 - (product['price'] - 20) / 180  # Invert: lower is better
-                rating_norm = (product['rating'] - 3.0) / 2.0
-                score = 0.4 * price_norm + 0.6 * rating_norm
-            
-            else:  # quality
-                # Maximize rating and warranty, price < $150
-                if product['price'] <= 150:
-                    rating_norm = (product['rating'] - 3.0) / 2.0
-                    warranty_norm = product['warranty_months'] / 36
-                    score = 0.7 * rating_norm + 0.3 * warranty_norm
-                else:
-                    score = -1
-            
-            scores.append(score)
-        
-        # Return index of best option
-        valid_indices = [i for i, s in enumerate(scores) if s >= 0]
-        
-        if len(valid_indices) == 0:
-            return 0  # Fallback
-        
-        best_idx = valid_indices[np.argmax([scores[i] for i in valid_indices])]
-        return best_idx
-    
-    def _get_decision_rule(self, profile: str) -> str:
-        """Get decision rule description."""
-        rules = {
-            'budget': 'minimize price with rating >= 4.0',
-            'balanced': 'balance price (40%) and rating (60%)',
-            'quality': 'maximize rating (70%) and warranty (30%) with price <= $150'
+        # Product categories and their typical attributes
+        self.categories = {
+            'laptop': ['price', 'performance', 'battery_life', 'weight', 'screen_quality'],
+            'phone': ['price', 'camera_quality', 'battery_life', 'storage', 'brand_reputation'],
+            'hotel': ['price', 'rating', 'location_score', 'amenities', 'cleanliness'],
+            'restaurant': ['price', 'food_rating', 'service_rating', 'ambiance', 'distance']
         }
-        return rules.get(profile, 'unknown')
+        
+        # Brand names for realism
+        self.brands = {
+            'laptop': ['TechPro', 'CompuMax', 'EliteBook', 'PowerLap', 'SwiftTech'],
+            'phone': ['TechPhone', 'SmartX', 'MobilePro', 'PhoneMax', 'ConnectPlus'],
+            'hotel': ['Grand Hotel', 'Comfort Inn', 'Luxury Stay', 'Budget Lodge', 'Elite Suites'],
+            'restaurant': ['Bella Italia', 'Sushi Master', 'The Steakhouse', 'Vegan Delight', 'Fast Bites']
+        }
+    
+    def generate_product_choice_set(
+        self,
+        category: str,
+        n_options: int = 10,
+        user_profile: Optional[Dict[str, float]] = None,
+        set_id: Optional[str] = None
+    ) -> ChoiceSet:
+        """Generate a realistic product choice set.
+        
+        Args:
+            category: Product category (laptop, phone, hotel, restaurant)
+            n_options: Number of options
+            user_profile: User preference weights for attributes
+            set_id: Unique identifier
+            
+        Returns:
+            ChoiceSet object
+        """
+        if category not in self.categories:
+            raise ValueError(f"Unknown category: {category}")
+        
+        if set_id is None:
+            set_id = f"{category}_{hashlib.md5(str(self.rng.rand()).encode()).hexdigest()[:8]}"
+        
+        attributes = self.categories[category]
+        brands = self.brands[category]
+        
+        options = []
+        for i in range(n_options):
+            # Generate attributes (normalized to [0,1])
+            attrs = {}
+            for attr in attributes:
+                if attr == 'price':
+                    # Price: lower is better, but we normalize
+                    attrs[attr] = self.rng.uniform(0.2, 1.0)
+                else:
+                    # Other attributes: higher is better
+                    attrs[attr] = self.rng.uniform(0.3, 1.0)
+            
+            # Pick a brand
+            brand = self.rng.choice(brands)
+            
+            option = Option(
+                id=f"prod_{set_id}_{i:03d}",
+                name=f"{brand} {category.title()} {i+1}",
+                attributes=attrs,
+                description=f"{brand} {category}",
+                is_decoy=False,
+                is_duplicate=False
+            )
+            options.append(option)
+        
+        # Determine ground truth based on user profile
+        if user_profile is None:
+            # Default: equal weights
+            user_profile = {attr: 1.0 / len(attributes) for attr in attributes}
+        
+        ground_truth, decision_rule = self._compute_utility_based_truth(
+            options, user_profile
+        )
+        
+        complexity_params = {
+            'category': category,
+            'n_options': n_options,
+            'user_profile': user_profile
+        }
+        
+        choice_set = ChoiceSet(
+            id=set_id,
+            options=options,
+            ground_truth=ground_truth,
+            decision_rule=decision_rule,
+            complexity_params=complexity_params,
+            task_description=f"Select the best {category} based on your preferences."
+        )
+        
+        return choice_set
+    
+    def _compute_utility_based_truth(
+        self,
+        options: List[Option],
+        user_profile: Dict[str, float]
+    ) -> Tuple[str, str]:
+        """Compute ground truth using weighted utility.
+        
+        Args:
+            options: List of options
+            user_profile: Attribute weights
+            
+        Returns:
+            Tuple of (ground_truth_id, decision_rule)
+        """
+        utilities = []
+        for opt in options:
+            utility = sum(opt.attributes.get(attr, 0) * weight 
+                         for attr, weight in user_profile.items())
+            utilities.append(utility)
+        
+        best_idx = np.argmax(utilities)
+        ground_truth = options[best_idx].id
+        
+        # Format decision rule
+        top_prefs = sorted(user_profile.items(), key=lambda x: x[1], reverse=True)[:2]
+        decision_rule = f"Maximize utility (top priorities: {top_prefs[0][0]}, {top_prefs[1][0]})"
+        
+        return ground_truth, decision_rule
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    print("=" * 80)
+    print("Choice Complexity Dataset Generator - Test Run")
+    print("=" * 80)
+    
+    # Test synthetic generator
+    print("\n1. Generating synthetic dataset...")
+    syn_gen = SyntheticChoiceGenerator(seed=42)
+    
+    # Generate a single example
+    example_set = syn_gen.generate_choice_set(
+        n_options=10,
+        n_attributes=3,
+        redundancy_ratio=0.3,
+        conflict_level="high",
+        include_decoy=True,
+        set_id="example_001"
+    )
+    
+    print(f"\nGenerated choice set: {example_set.id}")
+    print(f"Number of options: {len(example_set)}")
+    print(f"Complexity params: {example_set.complexity_params}")
+    print(f"\nGround truth: {example_set.ground_truth}")
+    print(f"Decision rule: {example_set.decision_rule}")
+    print(f"\nOptions (first 3):")
+    for i, opt in enumerate(example_set.options[:3]):
+        print(f"  {i+1}. {opt}")
+    
+    # Generate full dataset
+    print("\n2. Generating full synthetic dataset (100 choice sets)...")
+    dataset = syn_gen.generate_dataset(
+        n_choice_sets=100,
+        save_path=Path("data/synthetic_dataset.json")
+    )
+    print(f"Generated {len(dataset)} choice sets")
+    
+    # Test consumer choice generator
+    print("\n3. Generating consumer choice scenario...")
+    consumer_gen = ConsumerChoiceGenerator(seed=42)
+    
+    user_profile = {
+        'price': 0.4,  # Price-sensitive user
+        'performance': 0.3,
+        'battery_life': 0.2,
+        'weight': 0.05,
+        'screen_quality': 0.05
+    }
+    
+    laptop_set = consumer_gen.generate_product_choice_set(
+        category='laptop',
+        n_options=8,
+        user_profile=user_profile,
+        set_id="laptop_001"
+    )
+    
+    print(f"\nGenerated product choice set: {laptop_set.id}")
+    print(f"Number of laptops: {len(laptop_set)}")
+    print(f"\nUser profile: {user_profile}")
+    print(f"Ground truth (best laptop): {laptop_set.ground_truth}")
+    print(f"\nFirst 3 laptops:")
+    for i, opt in enumerate(laptop_set.options[:3]):
+        print(f"  {i+1}. {opt}")
+    
+    print("\n" + "=" * 80)
+    print("Dataset generation test completed successfully!")
+    print("=" * 80)
