@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.datasets import SyntheticChoiceDataset, ConsumerChoiceDataset
 from src.cci import ChoiceComplexityIndex
-from src.ildc import InternalDecisionComplexity
+from src.ildc import ILDCComputer
 from src.controller import ChoiceController
 from src.llm_adapter import LLMAdapter
 from src.utils import set_seed, save_results, load_config
@@ -47,7 +47,7 @@ class BenchmarkRunner:
         
         # Initialize components
         self.cci_calculator = ChoiceComplexityIndex(**config.get('cci', {}))
-        self.ildc_calculator = InternalDecisionComplexity(**config.get('ildc', {}))
+        self.ildc_calculator = ILDCComputer(**config.get('ildc', {}))
         self.llm = LLMAdapter(**config.get('llm', {}))
         
         # Results storage
