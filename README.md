@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![arXiv](https://img.shields.io/badge/arXiv-Preprint-b31b1b.svg)](https://arxiv.org)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soroushbagheri/choice-complexity-llm/blob/main/notebooks/demo_colab.ipynb)
 
 > **A two-tier framework for measuring and regulating choice-set complexity and internal decision difficulty in Large Language Models**
 
@@ -66,7 +67,23 @@ See [docs/REFERENCES.md](docs/REFERENCES.md) for comprehensive literature review
 
 ## 🚀 Quick Start
 
-### Installation
+### 🌐 Try It in Google Colab (Recommended!)
+
+**No installation needed!** Run the interactive demo directly in your browser:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soroushbagheri/choice-complexity-llm/blob/main/notebooks/demo_colab.ipynb)
+
+The Colab notebook includes:
+- ✅ Automated setup and installation
+- ✅ Interactive demo with synthetic data (no API keys needed)
+- ✅ Visual results and plots
+- ✅ Statistical analysis
+- ✅ Downloadable results
+- ✅ Custom experiment builder
+
+**Perfect for**: Team reviews, quick testing, sharing results
+
+### 💻 Local Installation
 
 ```bash
 # Clone repository
@@ -191,6 +208,8 @@ choice-complexity-llm/
 │   ├── demo_with_results.py   # Demo with synthetic LLM (no API needed)
 │   ├── ablation_study.py      # Ablation experiments
 │   └── plotting.py            # Visualization utilities
+├── notebooks/
+│   └── demo_colab.ipynb       # 🆕 Interactive Google Colab demo
 ├── configs/
 │   ├── default.yaml           # Default configuration
 │   └── experiments.yaml       # Experiment-specific configs
@@ -213,6 +232,7 @@ choice-complexity-llm/
 ## 📚 Documentation
 
 - **[REFERENCES.md](docs/REFERENCES.md)**: Comprehensive literature review (2024-2025 papers)
+- **[Google Colab Demo](notebooks/demo_colab.ipynb)**: Interactive demo notebook
 - **ARCHITECTURE.md**: Detailed system design (coming soon)
 - **METRICS.md**: Mathematical definitions of CCI and ILDC (coming soon)
 - **EXPERIMENTS.md**: Running experiments and interpreting results (coming soon)
@@ -253,21 +273,21 @@ Product-like items with attributes:
 
 ```python
 from src.cci import ChoiceComplexityIndex
-from src.ildc import InternalDecisionComplexity
-from src.controller import ChoiceController
+from src.ildc import ILDCComputer
+from src.controller import ChoiceComplexityController
 from src.llm_adapter import LLMAdapter
 
 # Initialize components
 cci_calculator = ChoiceComplexityIndex()
-ildc_calculator = InternalDecisionComplexity(n_samples=10)
-controller = ChoiceController(strategy='two_tier')
+ildc_calculator = ILDCComputer(n_samples=10)
+controller = ChoiceComplexityController()
 llm = LLMAdapter(model="gpt-4", temperature=0.7)
 
 # Define choice problem
 options = [
-    {"id": 0, "name": "Product A", "price": 50, "rating": 4.5, "shipping": 2},
-    {"id": 1, "name": "Product B", "price": 45, "rating": 4.2, "shipping": 5},
-    {"id": 2, "name": "Product C", "price": 55, "rating": 4.8, "shipping": 1},
+    {"id": 0, "name": "Product A", "attributes": {"price": 50, "rating": 4.5, "shipping": 2}},
+    {"id": 1, "name": "Product B", "attributes": {"price": 45, "rating": 4.2, "shipping": 5}},
+    {"id": 2, "name": "Product C", "attributes": {"price": 55, "rating": 4.8, "shipping": 1}},
     # ... more options
 ]
 
@@ -275,7 +295,7 @@ options = [
 cci_result = cci_calculator.compute(options)
 print(f"Choice Complexity Index: {cci_result['cci_score']:.3f}")
 print(f"Features: n={cci_result['features']['n_options']}, "
-      f"redundancy={cci_result['features']['redundancy']:.2f}")
+      f"redundancy={cci_result['features']['redundancy_ratio']:.2f}")
 
 # Step 2: Generate LLM decisions (multiple samples for ILDC)
 prompt = "Choose the best product considering price, rating, and shipping."
@@ -290,15 +310,17 @@ print(f"Internal Decision Complexity: {ildc_result['ildc_score']:.3f}")
 print(f"Volatility: {ildc_result['features']['volatility']:.2f}")
 
 # Step 4: Apply controller
-controlled_options, action = controller.apply(
-    options=options,
+action_type = controller.decide_action(
     cci_score=cci_result['cci_score'],
-    ildc_score=ildc_result['ildc_score']
+    ildc_score=ildc_result['ildc_score'],
+    num_options=len(options)
 )
-print(f"Controller action: {action}")
-print(f"Options reduced from {len(options)} to {len(controlled_options)}")
+control_action = controller.apply_action(action_type, options)
+print(f"Controller action: {control_action.action_type}")
+print(f"Options reduced from {len(options)} to {control_action.num_options_after}")
 
 # Step 5: Make final decision with controlled set
+controlled_options = [options[i] for i in control_action.selected_indices]
 final_response = llm.choose(options=controlled_options, context=prompt)
 print(f"Final choice: {final_response['choice']} - {final_response['reasoning']}")
 ```
@@ -328,12 +350,11 @@ ildc:
   confidence_method: "self_eval"  # or "logprobs"
 
 controller:
-  strategy: "two_tier"  # none, naive_topk, cci_only, ildc_only, two_tier
   cci_threshold: 0.6
   ildc_threshold: 0.5
   max_options: 5
-  clustering_method: "kmeans"
-  satisficing_threshold: 0.8
+  pruning_strategy: "diverse"
+  clustering_method: "hierarchical"
 
 dataset:
   n_samples: 100
