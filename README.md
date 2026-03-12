@@ -67,11 +67,11 @@ See [docs/REFERENCES.md](docs/REFERENCES.md) for comprehensive literature review
 
 ## 🚀 Quick Start
 
-### 🌐 Try It in Google Colab (Recommended!)
+###  Try It in Google Colab
 
-**No installation needed!** Run the interactive demo directly in your browser:
+ interactive demo:
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soroushbagheri/choice-complexity-llm/blob/main/notebooks/demo_colab.ipynb)
+(https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/soroushbagheri/choice-complexity-llm/blob/main/notebooks/demo_colab.ipynb)
 
 The Colab notebook includes:
 - ✅ Automated setup and installation
@@ -80,8 +80,6 @@ The Colab notebook includes:
 - ✅ Statistical analysis
 - ✅ Downloadable results
 - ✅ Custom experiment builder
-
-**Perfect for**: Team reviews, quick testing, sharing results
 
 ### 💻 Local Installation
 
