@@ -1,234 +1,401 @@
-# Decision-Theoretic Choice Complexity in LLMs - Project Roadmap
+# Choice Complexity in LLMs - 3-Month Research Roadmap
 
 ## Overview
-This document outlines the complete development and publication roadmap for the Choice Complexity research project.
 
-## Project Timeline (January - August 2026)
+This document outlines a focused and realistic 12-week plan for the first paper on Choice Complexity in LLMs.
 
-```
-Jan 2026  |  Feb 2026  |  Mar 2026  |  Apr 2026  |  May 2026  |  Jun 2026  |  Jul 2026  |  Aug 2026
-    |          |          |          |          |          |          |          |
-    ├─ #1 Real LLM Integration
-    |          ├─ #2 Function Calling Benchmark
-    |          |          ├─ #4 Human Evaluation Study
-    ├──── #7 Write Intro/Related Work
-               |          ├─ #8 Write Method Section
-               ├─ #5,#6 Ablation Studies
-                         |          ├─ #9 Write Results
-                         ├─ #14 Venue Decision
-                                    |          ├─ EMNLP Submission
-                                               |          ├─ Workshop Backup
-                                                          |          ├─ Revisions
-```
+The goal of this roadmap is not to solve the full long-term research agenda. The goal is to produce a strong and defensible first paper built around:
 
-## Phase 1: Publication-Ready Research (Weeks 1-24)
+- one primary benchmark,
+- clear baselines,
+- one working CCI formulation,
+- a small human evaluation,
+- and a complete paper draft.
 
-### 🔴 Critical Path (Must Complete)
-
-#### Month 1-2: Real LLM Integration & Benchmarks
-- **#1: Integrate Real LLM APIs** → [Issue #1](https://github.com/soroushbagheri/choice-complexity-llm/issues/1)
-  - Week 1-2: GPT-4 and Claude integration
-  - Week 2-3: Run on 100 synthetic problems
-  - Week 3-4: Validate CCI/ILDC correlations
-
-- **#2: Function Calling Benchmark** → [Issue #2](https://github.com/soroushbagheri/choice-complexity-llm/issues/2)
-  - Week 3-5: Berkeley benchmark setup
-  - Week 5-7: Run all controller strategies
-  - Week 7-8: Analysis and comparison
-
-#### Month 2-3: Human Evaluation
-- **#4: Human Evaluation Study** → [Issue #4](https://github.com/soroushbagheri/choice-complexity-llm/issues/4)
-  - Week 5-6: Study design + IRB (if needed)
-  - Week 7-8: Participant recruitment
-  - Week 9-10: Data collection
-  - Week 11-12: Analysis
-
-#### Month 3-4: Ablations & Paper Writing
-- **#5: CCI Ablations** → [Issue #5](https://github.com/soroushbagheri/choice-complexity-llm/issues/5)
-  - Week 9-10: Feature importance studies
-  - Week 10-11: Weight optimization
-
-- **#6: ILDC Ablations** → [Issue #6](https://github.com/soroushbagheri/choice-complexity-llm/issues/6)
-  - Week 10-11: Formulation comparison
-  - Week 11-12: Efficiency analysis
-
-- **#7: Introduction & Related Work** → [Issue #7](https://github.com/soroushbagheri/choice-complexity-llm/issues/7)
-  - Week 1-4: Can start in parallel
-  - Draft and revise with advisor
-
-- **#8: Method Section** → [Issue #8](https://github.com/soroushbagheri/choice-complexity-llm/issues/8)
-  - Week 9-12: After experiments are defined
-
-#### Month 5-6: Results & Submission
-- **#9: Results Section** → [Issue #9](https://github.com/soroushbagheri/choice-complexity-llm/issues/9)
-  - Week 13-16: Comprehensive results
-  - Week 16-18: Analysis and discussion
-
-- **#14: Venue Selection & Submission** → [Issue #14](https://github.com/soroushbagheri/choice-complexity-llm/issues/14)
-  - Week 12: Decision point (EMNLP vs Workshop)
-  - Week 20-22: Final polishing
-  - Week 24: **EMNLP 2026 Submission** (June deadline)
-
-### 🟡 Supporting Tasks (Important)
-
-- **#3: RAG Benchmark** → [Issue #3](https://github.com/soroushbagheri/choice-complexity-llm/issues/3)
-  - Optional but strengthens paper
-  - Can substitute for #2 if function calling fails
-
-- **#10: Documentation** → [Issue #10](https://github.com/soroushbagheri/choice-complexity-llm/issues/10)
-  - Ongoing throughout project
-  - Finalize before paper submission
-
-- **#15: Funding Applications** → [Issue #15](https://github.com/soroushbagheri/choice-complexity-llm/issues/15)
-  - Parallel track
-  - Submit 2-3 applications by April
-
-### 🟢 Optional Tasks (Nice to Have)
-
-- **#11: Unit Tests** → [Issue #11](https://github.com/soroushbagheri/choice-complexity-llm/issues/11)
-  - Good engineering practice
-  - Not critical for publication
-
-## Phase 2: Extended Research (Month 7+)
-
-### Post-Publication Work
-
-- **#12: High-Stakes Domain Application** → [Issue #12](https://github.com/soroushbagheri/choice-complexity-llm/issues/12)
-  - After Phase 1 publication accepted
-  - 6-12 month project
-  - Requires industry partner
-
-- **#13: Theoretical Analysis** → [Issue #13](https://github.com/soroushbagheri/choice-complexity-llm/issues/13)
-  - PhD-level work
-  - Could be separate paper
-  - Seek theory collaborators
-
-## Key Milestones & Decision Points
-
-### Milestone 1: Real LLM Validation (End of February)
-**Go/No-Go Decision**: Do real LLMs show same patterns as synthetic?
-- ✅ **GO**: CCI correlates with errors, ILDC detects instability → Continue to benchmarks
-- ❌ **NO-GO**: No correlation → Pivot to pure synthetic study or revisit metrics
-
-### Milestone 2: Benchmark Results (End of March)
-**Go/No-Go Decision**: Does two-tier beat baselines on real tasks?
-- ✅ **GO**: Significant improvements → Target EMNLP main or findings
-- ⚠️ **PARTIAL**: Modest improvements → Target EMNLP findings or workshop
-- ❌ **NO-GO**: No improvement → Target workshop, focus on analysis
-
-### Milestone 3: Human Evaluation (Mid-April)
-**Go/No-Go Decision**: Do humans prefer controller outputs?
-- ✅ **GO**: Significant preference + lower cognitive load → Major paper strength
-- ⚠️ **PARTIAL**: Preference but not load → Still publishable, discuss limitations
-- ❌ **NO-GO**: No preference → Reframe as optimization problem, not UX
-
-### Milestone 4: Venue Selection (Early May)
-**Final Decision**: Where to submit?
-- **Option A**: EMNLP Main (if all milestones strong GO)
-- **Option B**: EMNLP Findings (if 2/3 milestones GO)
-- **Option C**: NeurIPS Workshop (if 1/3 milestones GO or timeline slips)
-
-## Resource Requirements
-
-### Compute
-- **LLM API Credits**: ~$500-1000 (GPT-4, Claude)
-- **Local GPU** (optional): For open models
-
-### Human Resources
-- **Human evaluation participants**: $200-500 budget
-- **Advisor time**: Weekly meetings
-- **Collaborators** (optional): Statistics expert for analysis
-
-### Time Commitment
-- **Full-time equivalent**: 6 months (January - June 2026)
-- **Part-time (50%)**: 12 months (if combining with PhD coursework)
-
-## Risk Mitigation
-
-### Risk 1: Real LLMs Don't Show Expected Patterns
-**Mitigation**: 
-- Have synthetic results as fallback
-- Pivot to "synthetic LLM as model organism" framing
-- Focus on framework contribution, not empirical findings
-
-### Risk 2: Benchmark Results Underwhelming
-**Mitigation**:
-- Try multiple benchmarks (function calling, RAG, consumer choice)
-- Find niche where it works well
-- Honest discussion of when/where it helps
-
-### Risk 3: Human Evaluation Doesn't Show Preference
-**Mitigation**:
-- Reframe as efficiency optimization (fewer tokens, faster)
-- Target systems/optimization community instead of HCI
-- Emphasize computational benefits over user experience
-
-### Risk 4: Timeline Slips
-**Mitigation**:
-- Built-in 2-week buffer before each deadline
-- Workshop backup plan (shorter format, easier acceptance)
-- Can always submit to next cycle (EMNLP → NeurIPS → ICLR)
-
-## Success Criteria
-
-### Minimum Viable Publication (Workshop)
-- Real LLM experiments on 1 benchmark
-- Synthetic dataset results
-- Clear positioning vs related work
-- 4-6 page workshop paper
-
-### Good Publication (Conference Findings)
-- Real LLM experiments on 2 benchmarks
-- Human evaluation with statistical significance
-- Comprehensive ablations
-- 8-page findings paper
-
-### Excellent Publication (Conference Main)
-- Real LLM experiments on 3+ benchmarks
-- Large-scale human evaluation (100+ participants)
-- Theoretical insight or strong empirical surprise
-- Domain application case study
-- 8-page main conference paper + appendix
-
-## Next Immediate Actions (This Week)
-
-1. **Start #1 (Real LLM Integration)**
-   - Set up OpenAI API key
-   - Modify `llm_adapter.py`
-   - Run first test experiments
-
-2. **Draft #7 (Introduction)**
-   - 1-page motivation
-   - Position against SITAlign, CLAI
-
-3. **Plan #4 (Human Evaluation)**
-   - Draft survey questions
-   - Check if IRB needed
-   - Estimate budget
-
-4. **Decide on #14 (Venue)**
-   - Review EMNLP 2026 call for papers
-   - Mark deadline on calendar (early June)
-
-## Project Management
-
-### Weekly Rhythm
-- **Monday**: Plan week, review GitHub issues
-- **Wednesday**: Mid-week check-in, unblock issues
-- **Friday**: Week review, update issue status, plan next week
-
-### Monthly Rhythm
-- **Month end**: Milestone review
-- **Go/No-Go decision** if applicable
-- **Adjust timeline** based on progress
-
-### Communication
-- **GitHub Issues**: All tasks and progress
-- **This file**: Strategic overview
-- **Weekly meetings**: Sync with advisor/collaborators
+This roadmap is intentionally narrow so it remains achievable within about 3 months.
 
 ---
 
-**Last Updated**: January 24, 2026  
-**Status**: Phase 1 - Week 0 (Planning Complete, Ready to Execute)  
-**Next Review**: February 1, 2026
+## Overall objective for the first paper
+
+Deliver a first-paper submission showing that:
+
+1. a set-level Choice Complexity Index can be computed for LLM-generated option sets,
+2. complexity-aware selection improves the final option set compared with simple baselines,
+3. these gains are not explained only by showing fewer options,
+4. and human raters prefer the lower-complexity sets when quality is approximately preserved.
+
+---
+
+## Scope of the first paper
+
+### In scope
+
+- one main benchmark: AmbigNQ or ASQA
+- one clean LLM generation pipeline
+- one CCI scorer
+- several simple but strong baselines
+- component ablations
+- a small human study
+- a complete paper draft
+
+### Out of scope for this 3-month plan
+
+- multiple benchmark families
+- function calling benchmark
+- RAG benchmark
+- clinical or other high-stakes domains
+- full theoretical analysis
+- large-scale user study
+- multiple-model benchmark suite
+
+These are good extensions after the first paper, not before it.
+
+---
+
+## 12-week execution plan
+
+## Month 1 - Build and validate the core pipeline
+
+### Week 1 - Lock the formulation and experiment design
+
+Goals:
+- freeze the first-paper research question and claim
+- finalize the first benchmark choice: AmbigNQ or ASQA
+- define the first CCI formulation
+- define the evaluation protocol
+
+Deliverables:
+- final benchmark decision
+- final list of baselines
+- fixed experimental protocol
+- clean issue list and task breakdown
+
+Exit criterion:
+- no more expansion of scope before core implementation starts
+
+### Week 2 - Implement the base generation and scoring pipeline
+
+Goals:
+- implement candidate generation
+- implement the first CCI scorer
+- support set size, redundancy, utility entropy, and top-option ambiguity
+- store intermediate outputs for analysis
+
+Deliverables:
+- working generator
+- working CCI scorer
+- saved outputs for a small development split
+
+Exit criterion:
+- can run end-to-end on a small subset without manual intervention
+
+### Week 3 - Implement baselines and constant-size comparison setup
+
+Goals:
+- implement confidence-ranked top-k
+- implement diversity-based pruning
+- implement random pruning
+- implement set-size-only control
+- ensure final shown set size can be held constant across methods
+
+Deliverables:
+- baseline implementations
+- evaluation script for fixed-size comparisons
+
+Exit criterion:
+- all methods produce comparable final sets for the same inputs
+
+### Week 4 - Pilot experiment and metric sanity check
+
+Goals:
+- run a pilot on a manageable subset
+- inspect whether CCI behaves sensibly
+- check whether each term contributes meaningful signal
+- identify broken assumptions early
+
+Deliverables:
+- pilot results
+- first plots
+- note on whether the current CCI formulation is stable
+
+Decision point:
+- if the ambiguity term is unstable or unhelpful, revise it now
+- if CCI adds no value beyond set size, revise the formulation before scaling up
+
+---
+
+## Month 2 - Run the main experiments and ablations
+
+### Week 5 - Main benchmark run
+
+Goals:
+- run the full benchmark or a substantial representative subset
+- collect outputs for all baselines and the complexity-aware selector
+- record quality, coverage, and complexity metrics
+
+Deliverables:
+- main result tables
+- raw outputs archived for analysis
+
+Exit criterion:
+- first complete benchmark pass finished successfully
+
+### Week 6 - Error analysis and ablations
+
+Goals:
+- compare CCI against set size alone
+- run leave-one-component-out ablations
+- inspect failure cases
+- identify when the method helps and when it does not
+
+Deliverables:
+- ablation tables
+- error analysis notes
+- shortlist of illustrative examples
+
+Exit criterion:
+- clear understanding of which components matter most
+
+### Week 7 - Refine the selector and rerun targeted experiments
+
+Goals:
+- improve the selector if needed
+- rerun only the targeted experiments that matter
+- avoid endless iteration or overfitting to noise
+
+Deliverables:
+- final experiment configuration
+- final automatic evaluation tables
+
+Exit criterion:
+- automatic results are stable enough to support writing
+
+### Week 8 - Prepare the human evaluation
+
+Goals:
+- design a small pairwise comparison study
+- prepare evaluation items from actual model outputs
+- define clarity, ease-of-choice, and overload questions
+- check whether a lightweight ethics or advisor review is needed
+
+Deliverables:
+- human-study protocol
+- evaluation form
+- selected example pairs
+
+Exit criterion:
+- study materials ready for data collection
+
+---
+
+## Month 3 - Human study and paper writing
+
+### Week 9 - Run the human study
+
+Goals:
+- collect ratings on selected output pairs
+- compare complexity-aware outputs against strong baselines
+- keep the study focused and manageable
+
+Deliverables:
+- completed response set
+- cleaned study data
+
+Exit criterion:
+- enough responses collected for a meaningful small-scale analysis
+
+### Week 10 - Analyze human results and finalize figures
+
+Goals:
+- analyze study results
+- connect human findings to automatic metrics
+- finalize tables, figures, and example cases
+
+Deliverables:
+- final plots
+- final result summaries
+- final interpretation notes
+
+Exit criterion:
+- empirical story is complete
+
+### Week 11 - Draft the paper
+
+Goals:
+- write introduction and related work
+- write method section
+- write experiments and results
+- write limitations and future work
+
+Deliverables:
+- full first draft
+
+Exit criterion:
+- complete draft exists, even if rough
+
+### Week 12 - Revise and prepare submission
+
+Goals:
+- revise for clarity and reviewer defensibility
+- tighten contribution claims
+- verify tables, figures, and references
+- prepare submission package
+
+Deliverables:
+- polished paper draft
+- appendix or supplementary notes if needed
+- venue-ready submission package
+
+Exit criterion:
+- paper is ready for submission or advisor review
+
+---
+
+## Key milestones
+
+### Milestone 1 - End of Week 4
+Core pipeline works and the CCI formulation looks sensible.
+
+### Milestone 2 - End of Week 8
+Main automatic experiments and ablations are complete.
+
+### Milestone 3 - End of Week 10
+Human study is complete and integrated into the empirical story.
+
+### Milestone 4 - End of Week 12
+A full first-paper draft is ready for submission or final review.
+
+---
+
+## Go / no-go checkpoints
+
+### Checkpoint A - End of Week 4
+Question:
+Does the metric behave sensibly enough to justify the main experiment?
+
+Go if:
+- CCI is stable,
+- the components are interpretable,
+- and it appears more meaningful than set size alone.
+
+If not:
+- simplify the formulation,
+- reduce the claim,
+- and continue with a cleaner metric.
+
+### Checkpoint B - End of Week 6
+Question:
+Does the complexity-aware selector show promising automatic gains?
+
+Go if:
+- complexity is reduced,
+- quality loss is small,
+- and the method is competitive with simple baselines.
+
+If not:
+- reposition the paper around analysis and negative findings,
+- or simplify the selector further.
+
+### Checkpoint C - End of Week 10
+Question:
+Do humans show at least some preference for the lower-complexity outputs?
+
+Go if:
+- users find them clearer or easier without major quality concerns.
+
+If not:
+- keep the paper focused on automatic set-level control,
+- and present the human evidence as mixed or limited.
+
+---
+
+## Practical resource assumptions
+
+### Compute
+- API budget or model access sufficient for one benchmark and several reruns
+- local or hosted environment for storing outputs and embeddings
+
+### Human evaluation
+- small and manageable study, not a large-scale HCI project
+- enough participants for directional evidence, not necessarily a large formal user study
+
+### Time commitment
+This roadmap assumes focused work over about 12 weeks.
+
+A reasonable interpretation is:
+- full-time research over 3 months, or
+- part-time but disciplined work with weekly milestones
+
+---
+
+## Risks and mitigation
+
+### Risk 1 - Scope expansion
+Mitigation:
+- keep only one main benchmark in scope
+- postpone extra domains and benchmarks until after the first draft
+
+### Risk 2 - Metric instability
+Mitigation:
+- test the metric early in Week 4
+- allow simplification of the ambiguity term if needed
+
+### Risk 3 - Gains only come from fewer options
+Mitigation:
+- use constant-size comparisons as a core design principle
+- include set-size-only control as a baseline
+
+### Risk 4 - Human study is too ambitious
+Mitigation:
+- keep the study small
+- use pairwise judgments on real outputs
+- focus on clarity and ease rather than complex cognitive measures
+
+### Risk 5 - Writing starts too late
+Mitigation:
+- draft notes from Week 5 onward
+- begin related work and method notes before all experiments are finished
+
+---
+
+## Definition of success for this 3-month phase
+
+A successful 3-month phase means:
+
+- one benchmark completed,
+- one stable CCI formulation evaluated,
+- one set of meaningful baselines compared,
+- one small human study completed,
+- and one full paper draft ready.
+
+That is already a strong result for a first paper.
+
+---
+
+## What comes after this roadmap
+
+After the first paper, the project can expand to:
+
+- recommendation benchmarks,
+- RAG or function-calling settings,
+- high-stakes domains such as clinical decision support,
+- deeper theoretical analysis,
+- and larger human studies.
+
+Those should be treated as phase two, not as prerequisites for the first submission.
+
+---
+
+## Immediate next actions
+
+1. choose AmbigNQ or ASQA as the first benchmark
+2. finalize the current CCI formula for implementation
+3. implement the base scorer and baseline selectors
+4. run the first pilot by the end of Week 4
+
+---
+
+**Last updated:** April 2, 2026  
+**Current status:** focused 3-month first-paper plan  
+**Planning horizon:** 12 weeks
