@@ -1,266 +1,356 @@
 # Choice Complexity in LLMs
 
-> **A Decision-Theoretic Framework for Controlling the Cognitive Cost of LLM-Generated Option Sets**
+A decision-theoretic framework for controlling the cognitive cost of LLM-generated option sets
 
-[
-[
-[
+---
 
-***
+## What problem does this project study?
 
-## What is this project?
+Large language models often generate multiple candidate outputs: recommendations, next steps, alternative answers, or possible actions. More options can look helpful, but beyond a certain point they can make the final choice harder for the user.
 
-When a large language model responds to a question, it often generates multiple candidate options — recommendations, suggestions, next steps, or alternative answers. More options can feel helpful, but beyond a certain point they increase cognitive burden: the user slows down, second-guesses themselves, or disengages entirely.
+This repository studies that problem directly.
 
-This project studies that problem. Inspired by Barry Schwartz's **Paradox of Choice**, we ask:
+The central question is not only whether an LLM can generate good options, but whether it can generate a set of options that is easier for a human to choose from.
 
-> *Can we formally measure the cognitive complexity of an LLM-generated option set, and can we use that measure to control what the model produces?*
+In other words:
 
-The answer is what we are building here.
+> Can we formally measure the complexity of an LLM-generated option set, and can we use that signal to control what the user finally sees?
 
-***
+This project treats that as a human-centered inference-time control problem.
 
-## Research Questions
+---
 
-**RQ1.** Can we define a formal, computable **Choice Complexity Index (CCI)** that captures how cognitively demanding an LLM-generated option set is for a user?
+## Main idea
 
-**RQ2.** Does the CCI correlate with observable proxies of decision difficulty — such as set redundancy, entropy, and regret gap between options?
+The framework has three parts:
 
-**RQ3.** Can a symbolic scorer module use the CCI to prune or rerank LLM-generated options without materially reducing task quality or coverage?
+1. An LLM generates a candidate set of options.
+2. A symbolic scorer estimates how difficult that set is to choose from.
+3. A selector prunes or reranks the candidate set to satisfy a target complexity budget before the final options are shown to the user.
 
-**RQ4.** Does complexity-aware generation improve decision clarity across general NLP domains and transfer to high-stakes settings such as clinical decision support?
+This makes the contribution different from standard top-k generation, confidence ranking, or diversity-only decoding. The objective here is not just more answers, or more diverse answers, but lower human decision burden while preserving usefulness.
 
-***
+---
+
+## What this repository aims to contribute
+
+This project aims to contribute:
+
+- a formal and interpretable set-level metric for choice complexity,
+- a complexity-aware pruning or reranking mechanism for LLM outputs,
+- an empirical evaluation showing whether complexity-aware selection helps compared with simple baselines,
+- and a human-centered framing for multi-option LLM outputs in NLP tasks.
+
+The intended first paper is deliberately narrow and testable. It is not framed as a universal theory of human choice. It is framed as an interpretable control method for multi-option LLM outputs.
+
+---
+
+## First-paper scope
+
+The first paper is planned around one clean benchmark setting before expanding to broader domains.
+
+### Primary benchmark
+
+- AmbigNQ or ASQA
+- Task type: multi-answer open-domain QA
+- Why this setting: the task naturally contains multiple plausible outputs, which makes it a strong first testbed for set-level complexity control
+
+### Core experimental design
+
+For each input:
+
+1. Generate a candidate set with the base LLM.
+2. Compute a Choice Complexity Index over the set.
+3. Apply a complexity-aware selector.
+4. Compare the final set against strong but simple baselines.
+
+### Critical design principle
+
+The most important evaluation constraint is:
+
+> hold the final number of shown options constant whenever possible
+
+This matters because otherwise a reviewer can always argue that the gains came from merely showing fewer options.
+
+### Baselines for the first paper
+
+- confidence-ranked top-k
+- diversity-based pruning
+- random pruning
+- set-size-only control
+- unconstrained candidate set
+- single-answer prompting
+
+### Success condition for the first paper
+
+A strong first-paper result would be:
+
+- lower measured complexity,
+- equal or better perceived clarity,
+- and minimal loss in task quality or answer coverage.
+
+---
+
+## Research questions
+
+- RQ1. Can we define a formal, computable Choice Complexity Index (CCI) for LLM-generated option sets?
+- RQ2. Does CCI correlate with decision-difficulty proxies better than simple baselines such as set size alone?
+- RQ3. Can a complexity-aware selector reduce option-set burden without materially harming task quality?
+- RQ4. Do human users prefer lower-CCI final sets when quality is held approximately constant?
+
+---
+
+## Why this may be novel
+
+The main novelty is the target variable.
+
+Most related work focuses on one of the following:
+
+- answer quality,
+- uncertainty,
+- calibration,
+- decoding diversity,
+- or model-side reasoning cost.
+
+This project focuses on something different:
+
+> user-side choice complexity in the final option set
+
+That shift is important. The project is not mainly about whether the model is uncertain internally. It is about whether the final set presented to a user is unnecessarily hard to choose from.
+
+A second source of novelty is that the metric is set-level and interpretable. Instead of a black-box learned score, the current formulation is decomposable into understandable components that can be ablated and challenged individually.
+
+A third source of novelty is that the control mechanism is inference-time and modular. The framework can sit on top of an existing LLM generator rather than requiring a new model architecture.
+
+---
+
+## Proposed method
+
+```text
+Input query
+    │
+    ▼
+LLM option generator
+    │
+    ▼
+Candidate option set S
+    │
+    ▼
+Symbolic CCI scorer
+    │
+    ▼
+Complexity-aware selector
+    │
+    ▼
+Final option set shown to user
+```
+
+The selector may prune, rerank, or cluster options depending on the final implementation.
+
+---
+
+## Choice Complexity Index (CCI)
+
+A current working formulation is:
+
+CCI(S) = w1 * N(S) + w2 * H_u(S) + w3 * R(S) + w4 * A(S)
+
+Where:
+
+- N(S): set size
+- H_u(S): utility entropy or uncertainty over option utilities
+- R(S): semantic redundancy within the option set
+- A(S): top-option ambiguity
+
+### Why use top-option ambiguity instead of a simple regret-gap term?
+
+One reviewer-style concern with the earlier formulation is that a large gap between the best option and the average option may sometimes make the decision easier, not harder.
+
+To address that, this repository now treats the fourth term more carefully as top-option ambiguity rather than a naive regret-gap signal.
+
+In practice, A(S) can be implemented using one of the following:
+
+- inverse margin between the best and second-best option,
+- concentration of utility mass among near-top options,
+- or another measure of how hard it is to distinguish the leading candidates.
+
+This makes the index more consistent with the intuition that burden increases when the top options are hard to tell apart.
+
+### Interpretation
+
+Low CCI usually means:
+
+- fewer options,
+- clearer separation,
+- less overlap,
+- easier final choice.
+
+High CCI usually means:
+
+- more competing options,
+- more redundancy,
+- flatter preference structure,
+- harder final choice.
+
+### Important note
+
+The exact formulation of CCI is still an active research object. Part of the empirical contribution of this project will be to test whether each component really helps and whether the full index predicts difficulty better than simpler alternatives.
+
+---
 
 ## Hypotheses
 
 | ID | Hypothesis |
 |---|---|
-| H1 | Larger and more redundant option sets will produce higher CCI scores and higher perceived difficulty |
-| H2 | CCI — as a combination of set size, semantic redundancy, utility entropy, and regret gap — will correlate with decision difficulty more reliably than set size alone |
-| H3 | Complexity-aware pruning or reranking will reduce CCI without materially reducing coverage of the correct or most useful option |
-| H4 | A domain-general CCI framework will generalise across NLP tasks and be reproducible by independent researchers without task-specific engineering |
+| H1 | Larger and more redundant option sets will tend to have higher decision burden |
+| H2 | CCI will correlate with decision-difficulty proxies better than set size alone |
+| H3 | Complexity-aware selection will reduce burden with limited loss in answer quality or coverage |
+| H4 | Human raters will prefer lower-CCI final sets when final set size is controlled |
 
-***
+---
 
-## Proposed Method
+## Evaluation plan
 
-The system works in three stages:
+### Automatic evaluation
 
-```
-Input Query
-    │
-    ▼
-┌─────────────────────────────┐
-│  LLM Option Generator       │  ← standard LLM, top-k or beam search
-│  produces N candidate opts  │
-└────────────┬────────────────┘
-             │
-             ▼
-┌─────────────────────────────┐
-│  Symbolic CCI Scorer        │  ← computes CCI for the candidate set
-│  CCI = f(|S|, H, R, D)     │
-└────────────┬────────────────┘
-             │
-             ▼
-┌─────────────────────────────┐
-│  Complexity-Aware Selector  │  ← prunes/reranks to satisfy CCI budget C*
-│  outputs final option set   │
-└─────────────────────────────┘
-             │
-             ▼
-        User Output
-```
+The first automatic evaluation will focus on:
 
-***
+- CCI before and after selection
+- semantic redundancy
+- coverage of reference answers
+- task accuracy or semantic correctness
+- calibration or confidence alignment
+- ablations over each CCI component
 
-## Choice Complexity Index (CCI)
+### Human evaluation
 
-We define the CCI for a generated option set **S** as:
+A small human study is planned for the first paper.
 
-$$CCI(S) = w_1 \cdot |S| + w_2 \cdot H(S) + w_3 \cdot R(S) + w_4 \cdot D(S)$$
+Target questions include:
 
-Where:
+- Which final set is easier to choose from?
+- Which final set is clearer?
+- Which final set feels less overwhelming?
+- Does the lower-complexity set still feel useful enough?
 
-| Term | Symbol | Description |
-|---|---|---|
-| Set size | `|S|` | Raw number of options |
-| Utility entropy | `H(S)` | Dispersion of model confidence or utility scores across options — high entropy = hard to discriminate |
-| Redundancy | `R(S)` | Average pairwise semantic similarity — high similarity = overlapping options |
-| Regret gap | `D(S)` | Distance between best option and mean — large gap = the model is hedging |
+If possible, the study will compare pairs of final sets while keeping the number of shown options fixed.
 
-- **Low CCI** → few clear, non-overlapping options → easy to choose
-- **High CCI** → many similar, competing options → likely to overwhelm
+---
 
-Weights *w₁–w₄* are calibrated empirically via ablation or correlation with human decision difficulty proxies.
+## What this project does not claim yet
 
-***
+This repository does not yet claim:
 
-## Theoretical Basis
+- a universal cognitive theory of human choice,
+- a complete multi-domain benchmark result,
+- or a final validated formulation of choice complexity.
 
-This project draws on three bodies of work:
+The first goal is narrower:
 
-- **Barry Schwartz, *The Paradox of Choice* (2004)** — the core motivation: more options can reduce decision quality and satisfaction. We operationalise this into a formal metric.
-- **Random Utility Models (Dean et al., 2025)** — statistical tests for choice overload as violations of monotonicity. Used to validate that CCI correlates with real overload effects.
-- **Neurosymbolic AI** — the symbolic CCI scorer acts as an interpretable constraint on top of a neural generator, in the spirit of neurosymbolic integration (cf. CLAI, Zhang 2025; neurosymbolic reasoning, EMNLP 2025).
+> show that a structured set-level complexity signal can improve the presentation of multi-option LLM outputs on at least one real task
 
-***
+That claim is much more defensible for a first publication.
 
-## Scope
-
-This project is framed as a **general NLP / ML method**, not a domain-specific system.
-
-- **Primary scope:** open-domain recommendation, multi-answer QA, and general decision-support tasks
-- **Demonstration domain:** clinical triage / next-step recommendation in medicine — a high-stakes setting where choice overload has clear consequences
-- This separation gives the framework broader impact, better reproducibility, and a clearer path to being followed by other researchers
-
-***
+---
 
 ## Datasets
 
-> 🔲 **TODO: Dataset loading scripts not yet implemented**
-
 Planned evaluation settings:
 
-| Dataset | Task | Status |
+| Dataset | Task | Role |
 |---|---|---|
-| AmbigNQ / ASQA | Multi-answer open-domain QA | 🔲 Planned |
-| MovieLens / Amazon Reviews | Open-domain recommendation | 🔲 Planned |
-| ER-Reason | Clinical triage / next-step recommendation | 🔲 Planned |
-| Custom vignette set | Controlled pilot with known complexity levels | 🔲 Planned |
+| AmbigNQ / ASQA | Multi-answer open-domain QA | first-paper benchmark |
+| Controlled vignette set | synthetic or semi-synthetic pilot | metric sanity check |
+| recommendation dataset | recommendation or ranked suggestion task | extension |
+| clinical triage / next-step recommendation | high-stakes decision support | later extension |
 
-***
+The clinical domain is intentionally positioned as a later extension rather than the center of the first paper.
+
+---
 
 ## Baselines
 
-> 🔲 **TODO: Baseline implementations not yet added**
+Planned baselines include:
 
-| Baseline | Description |
+| Baseline | Purpose |
 |---|---|
-| Standard top-k | LLM top-k generation, no complexity control |
-| Diverse beam search | Maximises output diversity |
-| Confidence-ranked top-k | Select by model probability only |
-| Unconstrained generation | Full candidate set, no pruning |
-| Single-answer prompting | Prompt the model for exactly one answer |
+| confidence-ranked top-k | strong simple baseline |
+| diversity-based pruning | tests whether diversity alone is enough |
+| random pruning | lower bound |
+| set-size-only controller | tests whether CCI adds value beyond fewer options |
+| unconstrained candidate set | no control |
+| single-answer prompting | extreme low-complexity baseline |
 
-***
+---
 
-## Evaluation
+## Theoretical grounding
 
-> 🔲 **TODO: Evaluation pipeline not yet implemented**
+The project is motivated by three broad traditions:
 
-### Automatic Metrics
+- work on choice overload and the paradox of choice,
+- decision-theoretic and random-utility perspectives on hard choices,
+- neurosymbolic AI, where an interpretable symbolic layer constrains or guides a neural model.
 
-| Metric | What it measures |
-|---|---|
-| CCI before/after pruning | Core complexity reduction |
-| Semantic redundancy (avg pairwise cosine similarity) | Redundancy in the output set |
-| Coverage@k | Does the final set still contain the correct or reference answer? |
-| Task accuracy / F1 | Does pruning hurt correctness? |
-| Calibration | Do lower-CCI sets correspond to more confident decisions? |
+The intended contribution is operational rather than purely philosophical: translate these ideas into a measurable and testable LLM control framework.
 
-### Human Evaluation (Planned)
+---
 
-If feasible, collect ratings from annotators or domain experts on:
-- Perceived clarity
-- Decision ease
-- Overload rating
-- Trust in the recommendation
-
-### Main Success Criterion
-
-> Lower CCI with no major loss in task quality, and ideally improved user clarity.
-
-***
-
-## Publishable Claims
-
-This project targets a publishable contribution if it can demonstrate:
-
-1. LLM-generated option sets have **measurable cognitive complexity** via a formal CCI.
-2. The CCI **predicts or approximates** user decision difficulty better than set size alone.
-3. A **complexity-aware pruning method** reduces overload without sacrificing task quality.
-4. The framework **generalises across tasks and domains**, including high-stakes settings.
-
-**Target venues:** ACL / EMNLP 2026–2027, or SIGCHI / CSCW for the human-centred version.
-
-***
-
-## What differentiates this from existing work?
-
-| Related work | Their focus | Our focus |
-|---|---|---|
-| CLAI (Zhang, 2025) | LLM token efficiency (model-side cognitive load) | **User-side choice overload** in generated option sets |
-| NeurIPS 2024 Decision Framework | Evaluating LLM decision-making under uncertainty | **Controlling** complexity of LLM outputs for users |
-| Diverse beam search | Maximising output diversity | **Minimising cognitive cost** while preserving quality |
-| Top-k sampling | Controlling output quantity | **Formal metric** for option-set complexity |
-
-***
-
-## Current Status
+## Current status
 
 | Component | Status |
 |---|---|
-| Research framing and RQs | ✅ Complete |
-| CCI formal definition | ✅ Defined (see above) |
-| Theoretical basis | ✅ Complete |
-| Demo / prototype notebook | ✅ Exists (see `/demo`) |
-| CCI scorer implementation | 🔲 Not yet implemented |
-| Dataset loaders | 🔲 Not yet implemented |
-| Baseline comparison scripts | 🔲 Not yet implemented |
-| Evaluation pipeline | 🔲 Not yet implemented |
-| Human annotation protocol | 🔲 Not yet planned |
-| Paper draft | 🔲 Not yet started |
+| problem framing | done |
+| first-pass CCI formulation | done |
+| reviewer-aware narrowing of first paper | done |
+| prototype / demo | exists |
+| dataset loaders | planned |
+| CCI scorer implementation | planned |
+| selector baselines | planned |
+| evaluation pipeline | planned |
+| human study protocol | planned |
+| paper draft | planned |
 
-***
+---
 
-## Next Steps
+## Immediate next steps
 
-1. Implement the first version of the CCI scorer (sentence-transformers for similarity, entropy from model logits)
-2. Run a small pilot on AmbigNQ or ASQA to validate the index
-3. Add baseline comparison scripts
-4. Design the evaluation pipeline and ablation plan
-5. Use clinical triage (ER-Reason) as one evaluation domain
-6. Begin paper draft structure
+1. implement the first CCI scorer
+2. run a pilot on AmbigNQ or ASQA
+3. implement constant-size baseline comparisons
+4. run component ablations
+5. design the small human evaluation
+6. draft the first paper around one benchmark before expanding to other domains
 
-***
+---
 
-## Repository Structure
+## Repository structure
 
-```
+```text
 choice-complexity-llm/
-├── README.md                  ← this file
-├── demo/                      ← prototype notebook (exists)
+├── README.md
+├── PROJECT_ROADMAP.md
+├── demo/
 ├── src/
-│   ├── cci_scorer.py          ← 🔲 TODO: symbolic CCI module
-│   ├── generator.py           ← 🔲 TODO: LLM option generator wrapper
-│   ├── selector.py            ← 🔲 TODO: complexity-aware selector
-│   └── evaluate.py            ← 🔲 TODO: evaluation pipeline
 ├── data/
-│   └── README.md              ← 🔲 TODO: dataset download instructions
 ├── experiments/
-│   └── pilot/                 ← 🔲 TODO: first pilot experiment
-└── paper/                     ← 🔲 TODO: paper draft
+└── paper/
 ```
 
-***
+---
 
 ## Citation
 
-If you use or build on this work, please cite:
-
 ```bibtex
-@misc{bagheri2026cci,
-  title   = {Choice Complexity in LLMs: A Decision-Theoretic Framework for
-             Controlling the Cognitive Cost of LLM-Generated Option Sets},
-  author  = {Bagheri, Soroush},
-  year    = {2026},
-  url     = {https://github.com/soroushbagheri/choice-complexity-llm}
+@misc{bagheri2026choicecomplexity,
+  title  = {Choice Complexity in LLMs},
+  author = {Bagheri, Soroush},
+  year   = {2026},
+  url    = {https://github.com/soroushbagheri/choice-complexity-llm}
 }
 ```
 
-***
+---
 
 ## License
 
-MIT License. See `LICENSE` for details.
+MIT License
