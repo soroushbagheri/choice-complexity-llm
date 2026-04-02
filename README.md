@@ -336,18 +336,6 @@ choice-complexity-llm/
 └── paper/
 ```
 
----
-
-## Citation
-
-```bibtex
-@misc{bagheri2026choicecomplexity,
-  title  = {Choice Complexity in LLMs},
-  author = {Bagheri, Soroush},
-  year   = {2026},
-  url    = {https://github.com/soroushbagheri/choice-complexity-llm}
-}
-```
 
 ---
 
