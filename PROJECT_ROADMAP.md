@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines a focused and realistic 12-week plan for the first paper on Choice Complexity in LLMs.
+This document outlines a focused 12-week plan for the first paper on Choice Complexity in LLMs.
 
 The goal of this roadmap is not to solve the full long-term research agenda. The goal is to produce a strong and defensible first paper built around:
 
