@@ -31,7 +31,7 @@ Deliver a first-paper submission showing that:
 
 ### In scope
 
-- one main benchmark: AmbigNQ or ASQA
+- one main benchmark: AmbigNQ
 - one clean LLM generation pipeline
 - one CCI scorer
 - several simple but strong baselines
@@ -53,46 +53,71 @@ These are good extensions after the first paper, not before it.
 
 ---
 
+## Dataset decision
+
+The official first-paper dataset is:
+
+- AmbigNQ
+
+Why this is the right first choice:
+
+- ambiguity is intrinsic to the task,
+- multiple plausible answers are expected by construction,
+- it is strong enough for publication but still manageable for a first end-to-end pipeline,
+- and it avoids the extra complexity of long-form synthesis required by ASQA.
+
+Implementation decision:
+
+- start with the Hugging Face version of AmbigNQ,
+- use the `light` version first for the initial loader and inspection,
+- then scale to the fuller setup after the pipeline is stable.
+
+---
+
 ## 12-week execution plan
 
 ## Month 1 - Build and validate the core pipeline
 
-### Week 1 - Lock the formulation and experiment design
+### Week 1 - Lock the formulation and dataset pipeline
 
 Goals:
 - freeze the first-paper research question and claim
-- finalize the first benchmark choice: AmbigNQ or ASQA
+- finalize AmbigNQ as the benchmark
 - define the first CCI formulation
 - define the evaluation protocol
+- inspect the dataset structure
 
 Deliverables:
 - final benchmark decision
 - final list of baselines
 - fixed experimental protocol
 - clean issue list and task breakdown
+- first dataset inspection notebook or script
 
 Exit criterion:
 - no more expansion of scope before core implementation starts
 
-### Week 2 - Implement the base generation and scoring pipeline
+### Week 2 - Implement the AmbigNQ loader and base generation pipeline
 
 Goals:
+- implement dataset loading
+- parse question, annotations, and qaPairs cleanly
 - implement candidate generation
-- implement the first CCI scorer
-- support set size, redundancy, utility entropy, and top-option ambiguity
-- store intermediate outputs for analysis
+- save intermediate outputs for analysis
 
 Deliverables:
+- working AmbigNQ loader
 - working generator
-- working CCI scorer
 - saved outputs for a small development split
 
 Exit criterion:
 - can run end-to-end on a small subset without manual intervention
 
-### Week 3 - Implement baselines and constant-size comparison setup
+### Week 3 - Implement the CCI scorer and baselines
 
 Goals:
+- implement the first CCI scorer
+- support set size, redundancy, utility entropy, and top-option ambiguity
 - implement confidence-ranked top-k
 - implement diversity-based pruning
 - implement random pruning
@@ -100,6 +125,7 @@ Goals:
 - ensure final shown set size can be held constant across methods
 
 Deliverables:
+- working scorer
 - baseline implementations
 - evaluation script for fixed-size comparisons
 
@@ -109,7 +135,7 @@ Exit criterion:
 ### Week 4 - Pilot experiment and metric sanity check
 
 Goals:
-- run a pilot on a manageable subset
+- run a pilot on a manageable AmbigNQ subset
 - inspect whether CCI behaves sensibly
 - check whether each term contributes meaningful signal
 - identify broken assumptions early
@@ -255,7 +281,7 @@ Exit criterion:
 ## Key milestones
 
 ### Milestone 1 - End of Week 4
-Core pipeline works and the CCI formulation looks sensible.
+Core pipeline works on AmbigNQ and the CCI formulation looks sensible.
 
 ### Milestone 2 - End of Week 8
 Main automatic experiments and ablations are complete.
@@ -272,7 +298,7 @@ A full first-paper draft is ready for submission or final review.
 
 ### Checkpoint A - End of Week 4
 Question:
-Does the metric behave sensibly enough to justify the main experiment?
+Does the metric behave sensibly enough on AmbigNQ to justify the main experiment?
 
 Go if:
 - CCI is stable,
@@ -333,7 +359,7 @@ A reasonable interpretation is:
 
 ### Risk 1 - Scope expansion
 Mitigation:
-- keep only one main benchmark in scope
+- keep only AmbigNQ in scope for the first paper
 - postpone extra domains and benchmarks until after the first draft
 
 ### Risk 2 - Metric instability
@@ -377,6 +403,7 @@ That is already a strong result for a first paper.
 
 After the first paper, the project can expand to:
 
+- ASQA as a longer-form ambiguity extension,
 - recommendation benchmarks,
 - RAG or function-calling settings,
 - high-stakes domains such as clinical decision support,
@@ -389,13 +416,14 @@ Those should be treated as phase two, not as prerequisites for the first submiss
 
 ## Immediate next actions
 
-1. choose AmbigNQ or ASQA as the first benchmark
-2. finalize the current CCI formula for implementation
-3. implement the base scorer and baseline selectors
-4. run the first pilot by the end of Week 4
+1. implement the AmbigNQ loader
+2. inspect and print 5 AmbigNQ examples cleanly
+3. finalize the current CCI formula for implementation
+4. implement the base scorer and baseline selectors
+5. run the first pilot by the end of Week 4
 
 ---
 
 **Last updated:** April 2, 2026  
-**Current status:** focused 3-month first-paper plan  
+**Current status:** focused 3-month first-paper plan with AmbigNQ  
 **Planning horizon:** 12 weeks

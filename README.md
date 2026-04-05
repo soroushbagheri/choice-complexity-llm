@@ -51,9 +51,9 @@ The first paper is planned around one clean benchmark setting before expanding t
 
 ### Primary benchmark
 
-- AmbigNQ or ASQA
-- Task type: multi-answer open-domain QA
-- Why this setting: the task naturally contains multiple plausible outputs, which makes it a strong first testbed for set-level complexity control
+- AmbigNQ
+- Task type: ambiguous open-domain question answering with multiple plausible answers or interpretations
+- Why this setting: ambiguity is intrinsic to the dataset, which makes it a strong and publishable first testbed for set-level complexity control without adding the extra burden of long-form synthesis
 
 ### Core experimental design
 
@@ -62,7 +62,7 @@ For each input:
 1. Generate a candidate set with the base LLM.
 2. Compute a Choice Complexity Index over the set.
 3. Apply a complexity-aware selector.
-4. Compare the final set against strong but simple baselines.
+4. Compare the final fixed-size set against strong but simple baselines.
 
 ### Critical design principle
 
@@ -127,13 +127,13 @@ A third source of novelty is that the control mechanism is inference-time and mo
 ## Proposed method
 
 ```text
-Input query
+AmbigNQ question
     │
     ▼
 LLM option generator
     │
     ▼
-Candidate option set S
+Candidate answer set S
     │
     ▼
 Symbolic CCI scorer
@@ -142,7 +142,7 @@ Symbolic CCI scorer
 Complexity-aware selector
     │
     ▼
-Final option set shown to user
+Final fixed-size answer set
 ```
 
 The selector may prune, rerank, or cluster options depending on the final implementation.
@@ -253,18 +253,40 @@ That claim is much more defensible for a first publication.
 
 ---
 
-## Datasets
+## Dataset
 
-Planned evaluation settings:
+The official first-paper dataset is:
+
+- AmbigNQ
+
+Why AmbigNQ:
+
+- ambiguity is built into the dataset itself,
+- multiple plausible answers are expected by construction,
+- it is scientifically strong without being too complicated,
+- and it lets the first paper focus on candidate-set selection rather than long-form synthesis.
+
+Planned dataset roles:
 
 | Dataset | Task | Role |
 |---|---|---|
-| AmbigNQ / ASQA | Multi-answer open-domain QA | first-paper benchmark |
+| AmbigNQ | ambiguous open-domain QA | first-paper benchmark |
 | Controlled vignette set | synthetic or semi-synthetic pilot | metric sanity check |
-| recommendation dataset | recommendation or ranked suggestion task | extension |
+| ASQA | long-form ambiguity resolution | later extension |
+| recommendation dataset | recommendation or ranked suggestion task | later extension |
 | clinical triage / next-step recommendation | high-stakes decision support | later extension |
 
-The clinical domain is intentionally positioned as a later extension rather than the center of the first paper.
+The clinical domain and long-form ambiguity datasets are intentionally positioned as later extensions rather than the center of the first paper.
+
+### AmbigNQ loading plan
+
+The recommended source for the first implementation is the Hugging Face dataset version of AmbigNQ.
+
+Initial implementation target:
+
+- load the `light` version first,
+- inspect `id`, `question`, `annotations`, and `qaPairs`,
+- then build the generation and fixed-size selection pipeline on top of that structure.
 
 ---
 
@@ -302,8 +324,9 @@ The intended contribution is operational rather than purely philosophical: trans
 | problem framing | done |
 | first-pass CCI formulation | done |
 | reviewer-aware narrowing of first paper | done |
+| first-paper dataset decision (AmbigNQ) | done |
 | prototype / demo | exists |
-| dataset loaders | planned |
+| dataset loader | planned |
 | CCI scorer implementation | planned |
 | selector baselines | planned |
 | evaluation pipeline | planned |
@@ -314,12 +337,12 @@ The intended contribution is operational rather than purely philosophical: trans
 
 ## Immediate next steps
 
-1. implement the first CCI scorer
-2. run a pilot on AmbigNQ or ASQA
-3. implement constant-size baseline comparisons
-4. run component ablations
-5. design the small human evaluation
-6. draft the first paper around one benchmark before expanding to other domains
+1. implement the AmbigNQ loader
+2. inspect and print 5 AmbigNQ examples cleanly
+3. implement the first CCI scorer
+4. implement constant-size baseline comparisons
+5. run a pilot on AmbigNQ
+6. draft the first paper around AmbigNQ before expanding to other domains
 
 ---
 
@@ -329,13 +352,12 @@ The intended contribution is operational rather than purely philosophical: trans
 choice-complexity-llm/
 ├── README.md
 ├── PROJECT_ROADMAP.md
-├── demo/
+├── notebooks/
 ├── src/
 ├── data/
 ├── experiments/
 └── paper/
 ```
-
 
 ---
 
