@@ -30,7 +30,7 @@ The framework has three parts:
 
 This makes the contribution different from standard top-k generation, confidence ranking, or diversity-only decoding. The objective here is not just more answers, or more diverse answers, but lower human decision burden while preserving usefulness.
 
-## Inspiration from cognitive science and decision research
+# Inspiration from cognitive science and decision research
 This project is partly inspired by The Paradox of Choice by Barry Schwartz, as well as research on choice overload by Sheena Iyengar and bounded rationality by Herbert Simon. Together, these ideas support the motivation behind the project: helping LLMs produce option sets that are not only relevant, but also easier for humans to evaluate and choose from.
 
 ---
